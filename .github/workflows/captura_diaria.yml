@@ -1,0 +1,32 @@
+name: Captura diaria de datos energéticos
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  capturar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar librerías necesarias
+        run: pip install requests pandas
+
+      - name: Ejecutar el script de captura
+        run: python captura_diaria.py
+
+      - name: Guardar los cambios en el repositorio
+        run: |
+          git config --global user.name "Robot de captura"
+          git config --global user.email "robot@ejemplo.com"
+          git add historico_diario.csv
+          git commit -m "Actualización automática del historial" || echo "Sin cambios que guardar"
+          git push
