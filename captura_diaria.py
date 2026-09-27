@@ -103,3 +103,24 @@ with open("status.json", "w") as f:
     json.dump(badge_data, f)
 
 print("✅ status.json generado:", badge_data)
+
+# Badge de demanda (usa la última fila con dato de demanda disponible)
+ultima_demanda = tabla_final.dropna(subset=["pico_demanda_mw"]).iloc[-1]
+demanda_actual = ultima_demanda["pico_demanda_mw"]
+
+if demanda_actual < 4500:
+    color_demanda = "green"
+elif demanda_actual < 5200:
+    color_demanda = "yellow"
+else:
+    color_demanda = "red"
+
+badge_demanda = {
+    "schemaVersion": 1,
+    "label": "Demanda pico",
+    "message": f"{demanda_actual} MW",
+    "color": color_demanda
+}
+
+with open("status_demanda.json", "w") as f:
+    json.dump(badge_demanda, f)
