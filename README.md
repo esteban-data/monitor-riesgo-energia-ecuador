@@ -1,4 +1,7 @@
-# Monitor de Riesgo Energético — Ecuador
+# Monitor de Riesgo Energético — Ecuador 
+![Captura diaria](https://github.com/esteban-data/monitor-riesgo-energia-ecuador/actions/workflows/captura_diaria.yml/badge.svg)
+![Cota Mazar](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Festeban-data%2Fmonitor-riesgo-energia-ecuador%2Fmain%2Fstatus.json)
+![Demanda pico](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Festeban-data%2Fmonitor-riesgo-energia-ecuador%2Fmain%2Fstatus_demanda.json)
 
 Sistema automatizado que rastrea diariamente el nivel del embalse Mazar y el pico de demanda eléctrica nacional, como primer paso hacia un modelo de predicción de riesgo de apagones para el sector industrial ecuatoriano.
 
@@ -21,7 +24,7 @@ Todo el proceso corre sin intervención humana, una vez al día.
 
 ## 📊 Datos recolectados
 
-|      Column      |             Descripción                  |
+|      Columna     |             Descripción                  |
 |------------------|------------------------------------------|
 |  `fecha`         | Día al que corresponde el dato           |
 | `cota_mazar`     | Nivel del embalse Mazar (msnm)           |
@@ -35,7 +38,7 @@ Todo el proceso corre sin intervención humana, una vez al día.
 
 ## 👤 Autor
 
-Esteban — Estudiante de Ingeniería en Ciencias de Datos, Universidad Politécnica Salesiana (UPS), Ecuador.
+Esteban — Estudiante de Ingeniería en Ciencias de Datos, Ecuador.
 
 ## ⚠️ Nota
 
