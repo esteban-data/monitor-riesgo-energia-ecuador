@@ -27,6 +27,6 @@ jobs:
         run: |
           git config --global user.name "Robot de captura"
           git config --global user.email "robot@ejemplo.com"
-          git add historico_diario.csv status.json status_demanda.json
+          git add historico_diario.csv status.json status_demanda.json predicciones.csv 
           git commit -m "Actualización automática del historial" || echo "Sin cambios que guardar"
           git push
