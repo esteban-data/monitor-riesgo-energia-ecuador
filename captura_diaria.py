@@ -74,3 +74,32 @@ else:
 
 print("\n--- Historial actual ---")
 print(pd.read_csv(archivo_csv))
+
+import json
+
+# ---------- 4. GENERAR BADGE DINÁMICO (status.json) ----------
+tabla_final = pd.read_csv(archivo_csv)
+ultima_fila = tabla_final.dropna(subset=["cota_mazar"]).iloc[-1]
+cota_actual = ultima_fila["cota_mazar"]
+
+NIVEL_CRITICO = 2115
+margen = cota_actual - NIVEL_CRITICO
+
+if margen > 20:
+    color = "green"
+elif margen > 10:
+    color = "yellow"
+else:
+    color = "red"
+
+badge_data = {
+    "schemaVersion": 1,
+    "label": "Cota Mazar",
+    "message": f"{cota_actual} msnm",
+    "color": color
+}
+
+with open("status.json", "w") as f:
+    json.dump(badge_data, f)
+
+print("✅ status.json generado:", badge_data)
