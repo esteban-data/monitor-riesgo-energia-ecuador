@@ -125,26 +125,38 @@ badge_demanda = {
 with open("status_demanda.json", "w") as f:
     json.dump(badge_demanda, f)
 
-# ---------- 5. PREDICCIÓN DEL DÍA SIGUIENTE (modelo ingenuo) ----------
+# ---------- 5. PREDICCIÓN DEL DÍA SIGUIENTE (modelo ingenuo, corregido) ----------
 archivo_predicciones = "predicciones.csv"
 
 tabla_cota = tabla_final.dropna(subset=["cota_mazar"]).copy()
-tabla_demanda = tabla_final.dropna(subset=["pico_demanda_mw"]).copy()
+tabla_cota["fecha_dt"] = pd.to_datetime(tabla_cota["fecha"])
+tabla_cota = tabla_cota.sort_values("fecha_dt").reset_index(drop=True)
 
-# Tomamos los últimos 5 registros disponibles para calcular la tendencia
+tabla_demanda = tabla_final.dropna(subset=["pico_demanda_mw"]).copy()
+tabla_demanda["fecha_dt"] = pd.to_datetime(tabla_demanda["fecha"])
+tabla_demanda = tabla_demanda.sort_values("fecha_dt").reset_index(drop=True)
+
+# --- Cota: pendiente por día calendario real, con los últimos 5 registros ---
 ultimos_cota = tabla_cota.tail(5)
 if len(ultimos_cota) >= 2:
-    cambio_diario_promedio = (ultimos_cota["cota_mazar"].iloc[-1] - ultimos_cota["cota_mazar"].iloc[0]) / (len(ultimos_cota) - 1)
+    dias_reales = (ultimos_cota["fecha_dt"].iloc[-1] - ultimos_cota["fecha_dt"].iloc[0]).days
+    cambio_diario_promedio = (
+        (ultimos_cota["cota_mazar"].iloc[-1] - ultimos_cota["cota_mazar"].iloc[0]) / dias_reales
+        if dias_reales > 0 else 0
+    )
 else:
     cambio_diario_promedio = 0
 
 cota_hoy = tabla_cota["cota_mazar"].iloc[-1]
 prediccion_cota_manana = round(cota_hoy + cambio_diario_promedio, 2)
 
+# --- Demanda: MEDIANA de los últimos 5 registros (resistente a días atípicos, sin listas a mano) ---
 ultimos_demanda = tabla_demanda.tail(5)
-prediccion_demanda_manana = round(ultimos_demanda["pico_demanda_mw"].mean(), 1)
+prediccion_demanda_manana = (
+    round(ultimos_demanda["pico_demanda_mw"].median(), 1) if len(ultimos_demanda) >= 1 else None
+)
 
-fecha_prediccion_objetivo = hoy.strftime("%Y-%m-%d")  # "hoy" será el "mañana" cuando se cumpla
+fecha_prediccion_objetivo = hoy.strftime("%Y-%m-%d")
 
 nueva_prediccion = pd.DataFrame([{
     "fecha_objetivo": fecha_prediccion_objetivo,
@@ -161,29 +173,29 @@ if os.path.exists(archivo_predicciones):
 else:
     tabla_pred = pd.DataFrame(columns=nueva_prediccion.columns)
 
-# Evitar duplicar predicción del mismo día objetivo
 if fecha_prediccion_objetivo not in tabla_pred["fecha_objetivo"].astype(str).values:
     tabla_pred = pd.concat([tabla_pred, nueva_prediccion], ignore_index=True)
     print(f"🔮 Predicción para {fecha_prediccion_objetivo}: cota={prediccion_cota_manana}, demanda={prediccion_demanda_manana}")
 
-# ---------- 6. RELLENAR PREDICCIONES ANTERIORES CON EL DATO REAL ----------
-mask_pendiente = tabla_pred["fecha_objetivo"] == fecha_dato  # "fecha_dato" es el día que ya se cerró (ayer)
-if mask_pendiente.any():
-    fila_real_cota = tabla_cota[tabla_cota["fecha"] == fecha_dato]
-    fila_real_demanda = tabla_demanda[tabla_demanda["fecha"] == fecha_dato]
+# ---------- 6. RELLENAR TODAS LAS PREDICCIONES PENDIENTES (no solo la de ayer) ----------
+pendientes = tabla_pred[tabla_pred["cota_real"].isna() | tabla_pred["demanda_real"].isna()]
 
-    if not fila_real_cota.empty:
+for idx, fila_pendiente in pendientes.iterrows():
+    fecha_obj = str(fila_pendiente["fecha_objetivo"])
+    fecha_obj_dt = pd.to_datetime(fecha_obj)
+
+    fila_real_cota = tabla_cota[tabla_cota["fecha_dt"] == fecha_obj_dt]
+    if pd.isna(fila_pendiente["cota_real"]) and not fila_real_cota.empty:
         real_cota = fila_real_cota["cota_mazar"].iloc[0]
-        tabla_pred.loc[mask_pendiente, "cota_real"] = real_cota
-        tabla_pred.loc[mask_pendiente, "error_cota"] = round(real_cota - tabla_pred.loc[mask_pendiente, "cota_predicha"].iloc[0], 2)
+        tabla_pred.at[idx, "cota_real"] = real_cota
+        tabla_pred.at[idx, "error_cota"] = round(real_cota - fila_pendiente["cota_predicha"], 2)
 
-    if not fila_real_demanda.empty:
+    fila_real_demanda = tabla_demanda[tabla_demanda["fecha_dt"] == fecha_obj_dt]
+    if pd.isna(fila_pendiente["demanda_real"]) and not fila_real_demanda.empty:
         real_demanda = fila_real_demanda["pico_demanda_mw"].iloc[0]
-        tabla_pred.loc[mask_pendiente, "demanda_real"] = real_demanda
-        tabla_pred.loc[mask_pendiente, "error_demanda"] = round(real_demanda - tabla_pred.loc[mask_pendiente, "demanda_predicha"].iloc[0], 1)
-
-    print(f"✅ Comparación completada para {fecha_dato}")
-
+        tabla_pred.at[idx, "demanda_real"] = real_demanda
+        tabla_pred.at[idx, "error_demanda"] = round(real_demanda - fila_pendiente["demanda_predicha"], 1)
+        
 tabla_pred.to_csv(archivo_predicciones, index=False)
 print("\n--- Predicciones (últimas 5) ---")
 print(tabla_pred.tail())
