@@ -172,6 +172,27 @@ else:
     )
     print("⚠️ Aún pocos datos de ese día de la semana — usando mediana general como respaldo")
 
+fecha_prediccion_objetivo = hoy.strftime("%Y-%m-%d")
+
+nueva_prediccion = pd.DataFrame([{
+    "fecha_objetivo": fecha_prediccion_objetivo,
+    "cota_predicha": prediccion_cota_manana,
+    "demanda_predicha": prediccion_demanda_manana,
+    "cota_real": None,
+    "demanda_real": None,
+    "error_cota": None,
+    "error_demanda": None
+}])
+
+if os.path.exists(archivo_predicciones):
+    tabla_pred = pd.read_csv(archivo_predicciones)
+else:
+    tabla_pred = pd.DataFrame(columns=nueva_prediccion.columns)
+
+if fecha_prediccion_objetivo not in tabla_pred["fecha_objetivo"].astype(str).values:
+    tabla_pred = pd.concat([tabla_pred, nueva_prediccion], ignore_index=True)
+    print(f"🔮 Predicción para {fecha_prediccion_objetivo}: cota={prediccion_cota_manana}, demanda={prediccion_demanda_manana}")
+
 # ---------- 6. RELLENAR TODAS LAS PREDICCIONES PENDIENTES (no solo la de ayer) ----------
 pendientes = tabla_pred[tabla_pred["cota_real"].isna() | tabla_pred["demanda_real"].isna()]
 
