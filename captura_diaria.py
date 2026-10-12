@@ -150,32 +150,27 @@ else:
 cota_hoy = tabla_cota["cota_mazar"].iloc[-1]
 prediccion_cota_manana = round(cota_hoy + cambio_diario_promedio, 2)
 
-# --- Demanda: MEDIANA de los últimos 5 registros (resistente a días atípicos, sin listas a mano) ---
-ultimos_demanda = tabla_demanda.tail(5)
-prediccion_demanda_manana = (
-    round(ultimos_demanda["pico_demanda_mw"].median(), 1) if len(ultimos_demanda) >= 1 else None
-)
+# --- Demanda: usamos el mismo día de la semana, para capturar el patrón semanal ---
+fechas_a_excluir = pd.to_datetime(["2026-07-15", "2026-09-02"])  # outliers rescatados, no representativos
+tabla_demanda_confiable = tabla_demanda[~tabla_demanda["fecha_dt"].isin(fechas_a_excluir)]
 
-fecha_prediccion_objetivo = hoy.strftime("%Y-%m-%d")
+dia_semana_objetivo = hoy.weekday()  # 0=lunes ... 6=domingo
+mismo_dia_semana = tabla_demanda_confiable[
+    tabla_demanda_confiable["fecha_dt"].dt.weekday == dia_semana_objetivo
+]
 
-nueva_prediccion = pd.DataFrame([{
-    "fecha_objetivo": fecha_prediccion_objetivo,
-    "cota_predicha": prediccion_cota_manana,
-    "demanda_predicha": prediccion_demanda_manana,
-    "cota_real": None,
-    "demanda_real": None,
-    "error_cota": None,
-    "error_demanda": None
-}])
+MIN_MUESTRAS_NECESARIAS = 2
 
-if os.path.exists(archivo_predicciones):
-    tabla_pred = pd.read_csv(archivo_predicciones)
+if len(mismo_dia_semana) >= MIN_MUESTRAS_NECESARIAS:
+    ultimos_mismo_dia = mismo_dia_semana.tail(4)  # los 4 más recientes de ese día de la semana
+    prediccion_demanda_manana = round(ultimos_mismo_dia["pico_demanda_mw"].median(), 1)
+    print(f"📅 Predicción basada en {len(ultimos_mismo_dia)} dato(s) del mismo día de la semana (código {dia_semana_objetivo})")
 else:
-    tabla_pred = pd.DataFrame(columns=nueva_prediccion.columns)
-
-if fecha_prediccion_objetivo not in tabla_pred["fecha_objetivo"].astype(str).values:
-    tabla_pred = pd.concat([tabla_pred, nueva_prediccion], ignore_index=True)
-    print(f"🔮 Predicción para {fecha_prediccion_objetivo}: cota={prediccion_cota_manana}, demanda={prediccion_demanda_manana}")
+    ultimos_demanda = tabla_demanda_confiable.tail(5)
+    prediccion_demanda_manana = (
+        round(ultimos_demanda["pico_demanda_mw"].median(), 1) if len(ultimos_demanda) >= 1 else None
+    )
+    print("⚠️ Aún pocos datos de ese día de la semana — usando mediana general como respaldo")
 
 # ---------- 6. RELLENAR TODAS LAS PREDICCIONES PENDIENTES (no solo la de ayer) ----------
 pendientes = tabla_pred[tabla_pred["cota_real"].isna() | tabla_pred["demanda_real"].isna()]
