@@ -18,7 +18,7 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar librerías necesarias
-        run: pip install requests pandas
+        run: pip install requests pandas geoglows
 
       - name: Ejecutar el script de captura
         run: python captura_diaria.py
