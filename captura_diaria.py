@@ -215,3 +215,81 @@ for idx, fila_pendiente in pendientes.iterrows():
 tabla_pred.to_csv(archivo_predicciones, index=False)
 print("\n--- Predicciones (últimas 5) ---")
 print(tabla_pred.tail())
+# ---------- 7. CAUDAL PRONOSTICADO (GEOGLOWS) ----------
+caudal_manana = None
+try:
+    import geoglows
+    reach_id = 620867311
+    datos_caudal = geoglows.data.forecast_stats(river_id=reach_id).reset_index()
+    datos_caudal["fecha_texto"] = datos_caudal["time"].astype(str).str[:10]
+
+    manana = hoy + timedelta(days=1)
+    fecha_manana_texto = manana.strftime("%Y-%m-%d")
+    fila_manana_caudal = datos_caudal[datos_caudal["fecha_texto"] == fecha_manana_texto]
+
+    if not fila_manana_caudal.empty:
+        caudal_manana = round(fila_manana_caudal["flow_avg"].mean(), 2)
+        print(f"🌧️ Caudal promedio pronosticado para {fecha_manana_texto}: {caudal_manana} m³/s")
+except Exception as e:
+    print("⚠️ No se pudo obtener el pronóstico de caudal:", e)
+
+# ---------- 8. CAMINO B: alerta, sin tocar el modelo base ----------
+CAUDAL_BASE_ESTIAJE = 2.5  # referencia de caudal "normal" visto en el histórico reciente
+UMBRAL_ALERTA = 5.0        # a partir de aquí, consideramos que hay señal de lluvia relevante
+
+alerta_lluvia = ""
+if caudal_manana is not None and caudal_manana > UMBRAL_ALERTA:
+    alerta_lluvia = f"⚠️ Posible lluvia detectada (caudal pronosticado: {caudal_manana} m³/s)"
+    print(alerta_lluvia)
+
+# Agregamos la alerta a la fila de predicción que ya se creó en la sección 5, sin tocar sus números
+tabla_pred.loc[tabla_pred["fecha_objetivo"] == fecha_prediccion_objetivo, "alerta_lluvia"] = alerta_lluvia
+tabla_pred.to_csv(archivo_predicciones, index=False)
+
+# ---------- 9. CAMINO A: modelo experimental ajustado por caudal ----------
+archivo_experimental = "predicciones_experimental.csv"
+
+FACTOR_AJUSTE = 0.02  # metros de cota por cada m3/s sobre el caudal base (ESTIMACIÓN INICIAL, por calibrar con más datos)
+
+if caudal_manana is not None:
+    exceso_caudal = max(0, caudal_manana - CAUDAL_BASE_ESTIAJE)
+    ajuste = round(exceso_caudal * FACTOR_AJUSTE, 3)
+else:
+    ajuste = 0
+
+cota_predicha_ajustada = round(prediccion_cota_manana + ajuste, 2)
+
+nueva_fila_exp = pd.DataFrame([{
+    "fecha_objetivo": fecha_prediccion_objetivo,
+    "caudal_pronosticado": caudal_manana,
+    "cota_predicha_base": prediccion_cota_manana,
+    "cota_predicha_ajustada": cota_predicha_ajustada,
+    "cota_real": None,
+    "error_base": None,
+    "error_ajustado": None
+}])
+
+if os.path.exists(archivo_experimental):
+    tabla_exp = pd.read_csv(archivo_experimental)
+else:
+    tabla_exp = pd.DataFrame(columns=nueva_fila_exp.columns)
+
+if fecha_prediccion_objetivo not in tabla_exp["fecha_objetivo"].astype(str).values:
+    tabla_exp = pd.concat([tabla_exp, nueva_fila_exp], ignore_index=True)
+
+# Rellenar experimentales pendientes con dato real, igual que en la sección 6
+tabla_exp["fecha_dt_temp"] = pd.to_datetime(tabla_exp["fecha_objetivo"])
+pendientes_exp = tabla_exp[tabla_exp["cota_real"].isna()]
+
+for idx, fila_p in pendientes_exp.iterrows():
+    fila_real = tabla_cota[tabla_cota["fecha_dt"] == fila_p["fecha_dt_temp"]]
+    if not fila_real.empty:
+        real = fila_real["cota_mazar"].iloc[0]
+        tabla_exp.at[idx, "cota_real"] = real
+        tabla_exp.at[idx, "error_base"] = round(real - fila_p["cota_predicha_base"], 2)
+        tabla_exp.at[idx, "error_ajustado"] = round(real - fila_p["cota_predicha_ajustada"], 2)
+
+tabla_exp = tabla_exp.drop(columns=["fecha_dt_temp"])
+tabla_exp.to_csv(archivo_experimental, index=False)
+print("\n--- Experimental (últimas 5) ---")
+print(tabla_exp.tail())
