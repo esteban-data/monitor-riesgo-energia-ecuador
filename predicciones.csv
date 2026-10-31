@@ -31,4 +31,5 @@ fecha_objetivo,cota_predicha,demanda_predicha,cota_real,demanda_real,error_cota,
 2026-10-27,2123.54,5116.4,2122.86,4761.0,-0.68,-355.4,
 2026-10-28,2122.82,5066.3,2122.56,5101.1,-0.26,34.8,⚠️ Posible lluvia detectada (caudal pronosticado: 6.019999980926514 m³/s)
 2026-10-29,2122.36,5024.2,2123.03,4842.2,0.67,-182.0,
-2026-10-30,2122.86,5051.3,,,,,⚠️ Posible lluvia detectada (caudal pronosticado: 5.980000019073486 m³/s)
+2026-10-30,2122.86,5051.3,2123.589,4839.9,0.73,-211.4,⚠️ Posible lluvia detectada (caudal pronosticado: 5.980000019073486 m³/s)
+2026-10-31,2123.65,4775.0,,,,,⚠️ Posible lluvia detectada (caudal pronosticado: 8.850000381469727 m³/s)
